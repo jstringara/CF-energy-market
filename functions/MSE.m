@@ -14,5 +14,5 @@ function MSE = MSE(y, y_hat)
     end
 
     % calculate the mean squared error
-    MSE = mean(mean((y - y_hat).^2), "all");
+    MSE = mean((y - y_hat).^2, "all");
 end
