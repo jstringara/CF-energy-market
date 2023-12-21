@@ -1,4 +1,4 @@
-function [C, sigma_hat] = singleTimeDependentVolatilitySwaption(sigma_int_increments, F0, K, T, DF)
+function [C, sigma_hat] = singleTimeDependentVolatilitySwaption(sigma1_increments, sigma_2, F0, K, T, DF)
     % Price a swaption with time-dependent volatility using the Black 76 formula
     % the model is of the form:
     %   dF/F = sigma_1(t) dW_1 + sigma_2 dW_2
@@ -21,7 +21,8 @@ function [C, sigma_hat] = singleTimeDependentVolatilitySwaption(sigma_int_increm
     %
 
     arguments
-        sigma_int_increments (:,1) double {mustBePositive, mustBeNonempty}
+        sigma1_increments (:,1) double {mustBePositive, mustBeNonempty}
+        sigma_2 double {mustBePositive}
         F0 double
         K (:,1) double
         T (:,1) double
@@ -30,13 +31,14 @@ function [C, sigma_hat] = singleTimeDependentVolatilitySwaption(sigma_int_increm
 
     % validate the inputs
     % sigma_1, T and DF must be vectors of the same size
-    validateattributes(sigma_int_increments, {'double'}, {'size', size(T)});
+    validateattributes(sigma1_increments, {'double'}, {'size', size(T)});
     validateattributes(DF, {'double'}, {'size', size(T)});
 
     % compute the integral of the squared volatility for each maturity
-    sigma_1_int = cumsum(sigma_int_increments);
+    sigma_1_int = cumsum(sigma1_increments);
+    sigma_2_int = sigma_2^2 .* T;
 
-    sigma_hat = sqrt(sigma_1_int);
+    sigma_hat = sqrt(sigma_1_int + sigma_2_int);
 
     % compute the price of the swaption for each maturity and strike
     C = Black76SwaptionBatch(F0, K, T, DF, sigma_hat);
