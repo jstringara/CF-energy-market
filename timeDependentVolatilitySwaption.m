@@ -1,4 +1,5 @@
-function [C, sigma_hat] = timeDependentVolatilitySwaption(sigma1_increments, sigma2_increments, F0, K, T, DF)
+function [C, sigma_hat] = timeDependentVolatilitySwaption( ...
+    sigma1_increments, sigma2_increments, F0, K, T, DF)
     % Price a swaption with time-dependent volatility using the Black 76 formula
     % the model is of the form:
     %   dF/F = sigma_1(t) dW_1 + sigma_2 dW_2
