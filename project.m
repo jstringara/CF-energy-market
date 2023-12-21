@@ -77,9 +77,6 @@ x0 = max_volatility * rand(1, 2);
     x_const(1), x_const(2), F0, K, T, DF);
 
 figure('Name', 'Calibration with constant volatilities');
-
-% first subplot: plot the volatilities
-subplot(1, 2, 1); hold on
 % plot the market volatilities using only shades of red
 surf(K, T, market_sigma_hat, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
 % Plot the model volatilities (using only shades of blue)
@@ -87,7 +84,7 @@ surf(K, T, model_volatilities_const, 'FaceColor', [0.5 0.5 1], 'EdgeColor', 'non
 
 legend('Market volatility', 'Model volatility')
 xlabel('Strike price'); ylabel('Maturity'); zlabel('Volatility');
-title('Volatilities of swaptions');
+title('Sigma hat of swaptions');
 view(45,20);
 
 % second subplot: plot the prices
@@ -101,6 +98,15 @@ legend('Market price', 'Model price');
 xlabel('Strike price'); ylabel('Maturity'); zlabel('Swaption Price')
 title('Prices of swaptions');
 view(45,20)
+
+figure('Name', 'Calibration with constant volatilities'); hold on
+% plot the volatilities directly
+surf(K, T, volatilities);
+surf(K,T, sqrt(x_const(1)^2 + x_const(2)^2) * ones(size(volatilities)));
+legend('Market volatility', 'Model volatility')
+xlabel('Strike price'); ylabel('Maturity'); zlabel('Volatility');
+title('Volatilities of swaptions');
+view(45,20);
 
 %% Point IV: Calibration with time-dependent volatility
 
@@ -182,6 +188,50 @@ view(45,20);
 subplot(1, 2, 2); hold on
 surf(K, T, market_prices, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
 surf(K, T, model_prices_time, 'FaceColor', [0.5 0.5 1], 'EdgeColor', 'none');
+
+legend('Market price', 'Model price');
+xlabel('Strike price'); ylabel('Maturity'); zlabel('Swaption Price')
+title('Prices of swaptions');
+view(45,20);
+
+%% Point VI: Calibration with deterministic volatilities
+
+% Use the MSE as error function
+func = @(x) MSE(market_prices, deterministicVolatilitySwaption( ...
+    x(1), x(2), x(3), x(4), T1, T2, F0, K, T, DF));
+
+% lower bounds (variances must be stricly positive, alpha must be stricly positive)
+lb = zeros(4, 1);
+
+% initial guess, sigmas are betweeen 0 and max_volatility, alphas are between 1 and 2
+x0 = [max_volatility * rand(1,1), rand(1,1)+1, max_volatility*rand(1,1), rand(1,1)+1];
+
+% use fmincon to minimize the error function
+[x_det, fval_det] = fmincon(func, x0, [], [], [], [], lb)
+
+%% Plot the calibration
+
+% compute the model prices
+[model_prices_det, model_volatilities_det] = deterministicVolatilitySwaption( ...
+    x_det(1), x_det(2), x_det(3), x_det(4), T1, T2, F0, K, T, DF);
+
+% Plot the market prices
+figure('Name', 'Calibration with time-dependent volatilities');
+
+% volatilities
+subplot(1, 2, 1); hold on
+surf(K, T, market_sigma_hat, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
+surf(K, T, model_volatilities_det, 'FaceColor', [0.5 0.5 1], 'EdgeColor', 'none');
+
+legend('Market volatility', 'Model volatility')
+xlabel('Strike price'); ylabel('Maturity'); zlabel('Volatility');
+title('Volatilities of swaptions');
+view(45,20);
+
+% prices
+subplot(1, 2, 2); hold on
+surf(K, T, market_prices, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
+surf(K, T, model_prices_det, 'FaceColor', [0.5 0.5 1], 'EdgeColor', 'none');
 
 legend('Market price', 'Model price');
 xlabel('Strike price'); ylabel('Maturity'); zlabel('Swaption Price')
