@@ -41,6 +41,9 @@ K = table_options(1, 2:end).Variables; % strike prices
 T = table_options(2:end, 1).Variables; % maturities
 DF = discountFactor(OIS_DF, dates, T); % discount factors at the maturities of the options
 volatilities = table_options(2:end, 2:end).Variables; % real market implied volatilities
+max_volatility = max(volatilities, [], "all"); % maximum volatility
+% convert the volatilities to sigma hat (volatility * sqrt(T))
+market_sigma_hat = volatilities .* repmat(sqrt(T), 1, length(K));
 market_prices = volsToPrices(F0, K, T, DF, volatilities); % market prices of the options
 % expiry of the swap
 T1 = datenum(table_swaps(end, 1).Variables);
@@ -60,7 +63,7 @@ func = @(x) MSE(market_prices, constantVolatilitySwaption(x(1), x(2), F0, K, T, 
 lb = [0, 0]; % lower bounds (variance must be stricly positive)
 
 % initial guess, two random numbers between 0 and 1
-x0 = 10 * rand(1, 2);
+x0 = max_volatility * rand(1, 2);
 
 % use fmincon to minimize the error function
 [x_const, fval_const] = fmincon(func, x0, [], [], [], [], lb)
@@ -78,7 +81,7 @@ figure('Name', 'Calibration with constant volatilities');
 % first subplot: plot the volatilities
 subplot(1, 2, 1); hold on
 % plot the market volatilities using only shades of red
-surf(K, T, volatilities, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
+surf(K, T, market_sigma_hat, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
 % Plot the model volatilities (using only shades of blue)
 surf(K, T, model_volatilities_const, 'FaceColor', [0.5 0.5 1], 'EdgeColor', 'none');
 
@@ -102,13 +105,13 @@ view(45,20)
 %% Point IV: Calibration with time-dependent volatility
 
 % Use the MSE as error function
-func = @(x) MSE(market_prices, singleTimeDependentVolatilitySwaption(x, F0, K, T, DF));
+func = @(x) MSE(market_prices, singleTimeDependentVolatilitySwaption(x(1:end-1), x(end), F0, K, T, DF));
 
 % lower bounds (variances must be stricly positive, alpha must be stricly positive)
-lb = zeros(size(T));
+lb = zeros(length(T)+1, 1);
 
 % initial guess, length(T)+1 random numbers between 0 and 1
-x0 = rand(size(T));
+x0 = max_volatility * rand(length(T)+1, 1);
 
 % use fmincon to minimize the error function
 [x_singletime, fval_singletime] = fmincon(func, x0, [], [], [], [], lb)
@@ -117,14 +120,14 @@ x0 = rand(size(T));
 
 % compute the model prices
 [model_prices_singletime, model_volatilities_singletime] = singleTimeDependentVolatilitySwaption( ...
-    x_singletime, F0, K, T, DF);
+    x_singletime(1:end-1), x_singletime(end), F0, K, T, DF);
 
 % Plot the market prices
 figure('Name', 'Calibration with single time-dependent volatility');
 
 % volatilities
 subplot(1, 2, 1); hold on
-surf(K, T, volatilities, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
+surf(K, T, market_sigma_hat, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
 surf(K, T, model_volatilities_singletime, 'FaceColor', [0.5 0.5 1], 'EdgeColor', 'none');
 
 legend('Market volatility', 'Model volatility')
@@ -145,37 +148,42 @@ view(45,20);
 %% Point V: Calibration with two time-dependent volatilities
 
 % Use the MSE as error function
-func = @(x) MSE(market_prices, timeDependentVolatilitySwaption(x(1), x(2), x(3), x(4), F0, K, T, DF, T1, T2));
+func = @(x) MSE(market_prices, timeDependentVolatilitySwaption(x(:,1), x(:,2), F0, K, T, DF));
 
 % lower bounds (variances must be stricly positive, alpha must be stricly positive)
-lb = [0, 0, 0, 0];
-ub = [1, 10, 1, 10];
+lb = zeros(length(T), 2);
 
 % initial guess, three random numbers between 0 and 1
-x0 = rand(1, 4);
+x0 = max_volatility * rand(length(T), 2);
 
 % use fmincon to minimize the error function
-[x, fval] = fmincon(func, x0, [], [], [], [], lb, ub)
+[x_time, fval_time] = fmincon(func, x0, [], [], [], [], lb)
 
 %% Plot the calibration
 
 % compute the model prices
-model_prices = timeDependentVolatilitySwaption(x(1), x(2), x(3), x(4), F0, K, T, DF, T1, T2);
+[model_prices_time, model_volatilities_time] = timeDependentVolatilitySwaption(...
+    x_time(:,1), x_time(:,2), F0, K, T, DF);
 
 % Plot the market prices
-figure;
-hold on
-% plot the market prices using only shades of red
+figure('Name', 'Calibration with time-dependent volatilities');
+
+% volatilities
+subplot(1, 2, 1); hold on
+surf(K, T, market_sigma_hat, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
+surf(K, T, model_volatilities_time, 'FaceColor', [0.5 0.5 1], 'EdgeColor', 'none');
+
+legend('Market volatility', 'Model volatility')
+xlabel('Strike price'); ylabel('Maturity'); zlabel('Volatility');
+title('Volatilities of swaptions');
+view(45,20);
+
+% prices
+subplot(1, 2, 2); hold on
 surf(K, T, market_prices, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
-xlabel('Strike price');
-ylabel('Maturity');
-zlabel('Market price');
-title('Market prices of swaptions');
+surf(K, T, model_prices_time, 'FaceColor', [0.5 0.5 1], 'EdgeColor', 'none');
 
-% Plot the model prices
-surf(K, T, model_prices, 'FaceColor', [0.5 0.5 1], 'EdgeColor', 'none');
-zlabel('Model price')
-
-legend('Market price', 'Model price')
-
-view(45,20)
+legend('Market price', 'Model price');
+xlabel('Strike price'); ylabel('Maturity'); zlabel('Swaption Price')
+title('Prices of swaptions');
+view(45,20);
