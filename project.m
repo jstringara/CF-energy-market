@@ -3,6 +3,10 @@
 close all
 clear all
 warning('off','all')
+
+% fix the seed of the random number generator
+rng("default");
+
 clc
 
 %% Load the data
@@ -237,3 +241,5 @@ legend('Market price', 'Model price');
 xlabel('Strike price'); ylabel('Maturity'); zlabel('Swaption Price')
 title('Prices of swaptions');
 view(45,20);
+
+%% Point VII: pricing a down-and-in call option
