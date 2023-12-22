@@ -80,19 +80,20 @@ x0 = max_volatility * rand(1, 2);
 [model_prices_const, model_volatilities_const] = constantVolatilitySwaption( ...
     x_const(1), x_const(2), F0, K, T, DF);
 
-figure('Name', 'Calibration with constant volatilities');
+% plot sigma hat
+figure; hold on
 % plot the market volatilities using only shades of red
 surf(K, T, market_sigma_hat, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
 % Plot the model volatilities (using only shades of blue)
 surf(K, T, model_volatilities_const, 'FaceColor', [0.5 0.5 1], 'EdgeColor', 'none');
 
-legend('Market volatility', 'Model volatility')
-xlabel('Strike price'); ylabel('Maturity'); zlabel('Volatility');
-title('Sigma hat of swaptions');
+legend('Market \hat\sigma', 'Model \hat\sigma')
+xlabel('Strike price'); ylabel('Maturity'); zlabel('\hat\sigma');
+title('\hat\sigma of swaptions');
 view(45,20);
 
 % second subplot: plot the prices
-subplot(1, 2, 2); hold on
+figure; hold on
 % plot the market prices using only shades of red
 surf(K, T, market_prices, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
 % Plot the model prices (using only shades of blue)
@@ -103,7 +104,7 @@ xlabel('Strike price'); ylabel('Maturity'); zlabel('Swaption Price')
 title('Prices of swaptions');
 view(45,20)
 
-figure('Name', 'Calibration with constant volatilities'); hold on
+figure; hold on
 % plot the volatilities directly
 surf(K, T, volatilities);
 surf(K,T, sqrt(x_const(1)^2 + x_const(2)^2) * ones(size(volatilities)));
@@ -132,21 +133,18 @@ x0 = max_volatility * rand(length(T)+1, 1);
 [model_prices_singletime, model_volatilities_singletime] = singleTimeDependentVolatilitySwaption( ...
     x_singletime(1:end-1), x_singletime(end), F0, K, T, DF);
 
-% Plot the market prices
-figure('Name', 'Calibration with single time-dependent volatility');
-
-% volatilities
-subplot(1, 2, 1); hold on
+% sigma hats
+figure; hold on
 surf(K, T, market_sigma_hat, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
 surf(K, T, model_volatilities_singletime, 'FaceColor', [0.5 0.5 1], 'EdgeColor', 'none');
 
-legend('Market volatility', 'Model volatility')
-xlabel('Strike price'); ylabel('Maturity'); zlabel('Volatility');
-title('Volatilities of swaptions');
+legend('Market \hat\sigma', 'Model \hat\sigma')
+xlabel('Strike price'); ylabel('Maturity'); zlabel('\hat\sigma');
+title('\hat\sigma of swaptions');
 view(45,20);
 
 % prices
-subplot(1, 2, 2); hold on
+figure; hold on
 surf(K, T, market_prices, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
 surf(K, T, model_prices_singletime, 'FaceColor', [0.5 0.5 1], 'EdgeColor', 'none');
 
@@ -175,21 +173,19 @@ x0 = max_volatility * rand(length(T), 2);
 [model_prices_time, model_volatilities_time] = timeDependentVolatilitySwaption(...
     x_time(:,1), x_time(:,2), F0, K, T, DF);
 
-% Plot the market prices
-figure('Name', 'Calibration with time-dependent volatilities');
 
-% volatilities
-subplot(1, 2, 1); hold on
+% sigma hats
+figure; hold on
 surf(K, T, market_sigma_hat, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
 surf(K, T, model_volatilities_time, 'FaceColor', [0.5 0.5 1], 'EdgeColor', 'none');
 
-legend('Market volatility', 'Model volatility')
-xlabel('Strike price'); ylabel('Maturity'); zlabel('Volatility');
-title('Volatilities of swaptions');
+legend('Market \hat\sigma', 'Model \hat\sigma')
+xlabel('Strike price'); ylabel('Maturity'); zlabel('\hat\sigma');
+title('\hat\sigma of swaptions');
 view(45,20);
 
 % prices
-subplot(1, 2, 2); hold on
+figure; hold on
 surf(K, T, market_prices, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
 surf(K, T, model_prices_time, 'FaceColor', [0.5 0.5 1], 'EdgeColor', 'none');
 
@@ -219,21 +215,18 @@ x0 = [max_volatility * rand(1,1), rand(1,1)+1, max_volatility*rand(1,1), rand(1,
 [model_prices_det, model_volatilities_det] = deterministicVolatilitySwaption( ...
     x_det(1), x_det(2), x_det(3), x_det(4), T1, T2, F0, K, T, DF);
 
-% Plot the market prices
-figure('Name', 'Calibration with time-dependent volatilities');
-
-% volatilities
-subplot(1, 2, 1); hold on
+% sigma hats
+figure; hold on
 surf(K, T, market_sigma_hat, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
 surf(K, T, model_volatilities_det, 'FaceColor', [0.5 0.5 1], 'EdgeColor', 'none');
 
-legend('Market volatility', 'Model volatility')
-xlabel('Strike price'); ylabel('Maturity'); zlabel('Volatility');
-title('Volatilities of swaptions');
+legend('Market \hat\sigma', 'Model \hat\sigma')
+xlabel('Strike price'); ylabel('Maturity'); zlabel('\hat\sigma');
+title('\hat\sigma of swaptions');
 view(45,20);
 
 % prices
-subplot(1, 2, 2); hold on
+figure; hold on
 surf(K, T, market_prices, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
 surf(K, T, model_prices_det, 'FaceColor', [0.5 0.5 1], 'EdgeColor', 'none');
 
@@ -242,4 +235,25 @@ xlabel('Strike price'); ylabel('Maturity'); zlabel('Swaption Price')
 title('Prices of swaptions');
 view(45,20);
 
-%% Point VII: pricing a down-and-in call option
+%% Point VII, a: pricing a down-and-in call option, using the constant volatility model
+
+sigma_hat = sqrt((x_const(1)^2 + x_const(2)^2) * T(end)); % sigma
+L = 450; % barrier
+K = 500; % strike
+
+C_DI_const = downAndInCallOptionPrice(F0, K, L, T(end), DF(end), sigma_hat)
+
+%% Prova del nove
+
+% integral is (sigma_1^2 + sigma_2^2) * (T_n - T_{n-1})
+sigma_int_inc = (x_const(1)^2 + x_const(2)^2) * (T - [0; T(1:end-1)]);
+
+Sim_const = MC_simulation(sigma_int_inc, F0, T);
+
+% find which rows have gone below the barrier
+below_barrier = Sim_const < L;
+below_barrier = any(below_barrier, 2);
+
+C_DI_const_MC = max(Sim_const(:,end) - K, 0) .* below_barrier;
+
+C_DI_const_MC = mean(C_DI_const_MC) * DF(end)
