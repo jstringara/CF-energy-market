@@ -8,7 +8,6 @@ warning('off','all')
 rng("default");
 
 clc
-
 %% Load the data
 
 data_dir = "Data/";
@@ -20,8 +19,8 @@ table_ois = readtable(data_dir + "DataDEEEX.xlsx", 'Sheet', 'ois');
 
 % add functions to the path
 addpath("functions/");
-
 %% Dates of discount factors
+
 number_days = 365; % number of days in a year
 dates = table_ois(1, 1:end).Variables + 693960; % dates + adjustment to matlab date format
 
@@ -29,10 +28,9 @@ dates = table_ois(1, 1:end).Variables + 693960; % dates + adjustment to matlab d
 % we need to convert the dates to datenum format
 dates = dates - datenum('04/11/2023', 'dd/mm/yyyy');
 dates = dates / number_days; % convert to fraction of (business) year
-
 %% Discount factors
-OIS_DF = table_ois(2, 1:end).Variables; % discount factors
 
+OIS_DF = table_ois(2, 1:end).Variables; % discount factors
 %% Calibration set-up
 
 F0 = table_swaps(end, end).Variables; % swap price at time 0
@@ -52,9 +50,6 @@ T2 = datenum('31/12/2024', 'dd/mm/yyyy');
 T2 = T2 - datenum('04/11/2023', 'dd/mm/yyyy');
 T2 = T2 / number_days; % convert to fraction of (business) year
 
-% dictionary to store the results, name, parameters (variable length), model prices, model volatilities,
-% MSE, RMSE
-calibration_results = containers.Map('KeyType', 'char', 'ValueType', 'any');
 %% Plot the prices and the volatilities
 
 % plot the prices
@@ -71,8 +66,7 @@ grid on
 surf(K, T, volatilities);
 xlabel('Strike price'); ylabel('Maturity'); zlabel('Volatility');
 title('Implied volatilities of swaptions');
-view(45,20);
-
+view(-20,20);
 %% Point III: Calibrate the model using the Black-76 formula
 
 % Use the MSE as error function
@@ -85,17 +79,15 @@ x0 = max_volatility * rand(1, 2);
 
 % use fmincon to minimize the error function
 [x_const, fval_const] = fmincon(func, x0, [], [], [], [], lb)
-
-%% Store the results of the calibration
+%% Compute the model prices and volatilities
 
 % compute the model prices and volatilities
 [model_prices_const, model_volatilities_const] = constantVolatilitySwaption( ...
     x_const(1), x_const(2), F0, K, T, DF);
 
-% store the results
-calibration_results("Constant volatility") = ...
-    {x_const, model_prices_const, model_volatilities_const, fval_const, sqrt(fval_const)};
-
+% print the results
+x_const
+fval_const
 %% Plot the calibration
 
 % volatilities
@@ -117,7 +109,6 @@ legend('Market price', 'Model price');
 xlabel('Strike price'); ylabel('Maturity'); zlabel('Swaption Price')
 title('Prices of swaptions');
 view(45,20)
-
 %% Point IV: Calibration with time-dependent volatility
 
 % Use the MSE as error function
@@ -131,15 +122,20 @@ x0 = max_volatility * rand(length(T)+1, 1);
 
 % use fmincon to minimize the error function
 [x_singletime, fval_singletime] = fmincon(func, x0, [], [], [], [], lb)
-
-%% Store the results of the calibration
+%% Compute the model prices and volatilities
 
 % compute the model prices
 [model_prices_singletime, model_volatilities_singletime] = singleTimeDependentVolatilitySwaption( ...
     x_singletime(1:end-1), x_singletime(end), F0, K, T, DF);
 
-calibration_results("Single time-dependent volatility") = ...
-    {x_singletime, model_prices_singletime, model_volatilities_singletime, fval_singletime, sqrt(fval_singletime)};
+% print the results
+x_singletime(end)
+fval_singletime
+% recompute sigma hat
+sigma_hat_singletime = sqrt( cumsum(x_singletime(1:end-1)) + x_singletime(end)^2 * T );
+table(T, x_singletime(1:end-1), x_singletime(end)^2 * (T - [0; T(1:end-1)]), sigma_hat_singletime, ...
+    'VariableNames', {'Tenor', 'Integral increase (Time dependent)', 'Integral increase (Constant)', 'Sigma hat'})
+    
 
 %% Plot the calibration
 
@@ -162,7 +158,6 @@ legend('Market price', 'Model price');
 xlabel('Strike price'); ylabel('Maturity'); zlabel('Swaption Price')
 title('Prices of swaptions');
 view(45,20);
-
 %% Point V: Calibration with two time-dependent volatilities
 
 % Use the MSE as error function
@@ -176,15 +171,17 @@ x0 = max_volatility * rand(length(T), 2);
 
 % use fmincon to minimize the error function
 [x_time, fval_time] = fmincon(func, x0, [], [], [], [], lb)
-
 %% Store the results of the calibration
 
 % compute the model prices
 [model_prices_time, model_volatilities_time] = timeDependentVolatilitySwaption(...
     x_time(:,1), x_time(:,2), F0, K, T, DF);
 
-calibration_results("Time-dependent volatility") = ...
-    {x_time, model_prices_time, model_volatilities_time, fval_time, sqrt(fval_time)};
+% print the results
+fval_time
+sigma_hat_time = sqrt( cumsum(x_time(:,1)) + cumsum(x_time(:,2)) );
+table(T, x_time(:,1), x_time(:,2), sigma_hat_time, ...
+    'VariableNames', {'Tenor', 'Integral increase (Sigma_1)', 'Integral increase (Sigma_2)', 'Sigma hat'})
 
 %% Plot the calibration
 
@@ -207,33 +204,31 @@ legend('Market price', 'Model price');
 xlabel('Strike price'); ylabel('Maturity'); zlabel('Swaption Price')
 title('Prices of swaptions');
 view(45,20);
-
 %% Point VI: Calibration with deterministic volatilities
 
 % Use the MSE as error function
 func = @(x) MSE(market_prices, deterministicVolatilitySwaption( ...
-    x(1), x(2), x(3), x(4), T1, T2, F0, K, T, DF));
+    x(1), x(2), x(3), T1, T2, F0, K, T, DF));
 
 % lower bounds (variances must be stricly positive, alpha must be stricly positive)
-lb = zeros(4, 1);
+lb = zeros(3, 1);
 
 % initial guess, sigmas are betweeen 0 and max_volatility, alphas are between 1 and 2
-x0 = [max_volatility * rand(1,1), rand(1,1)+1, max_volatility*rand(1,1), rand(1,1)+1];
+x0 = [max_volatility * rand(1,1), rand(1,1)+1, max_volatility*rand(1,1)];
 
 % use fmincon to minimize the error function
 [x_det, fval_det] = fmincon(func, x0, [], [], [], [], lb)
-
 %% Store the results of the calibration
 
 % compute the model prices
 [model_prices_det, model_volatilities_det] = deterministicVolatilitySwaption( ...
-    x_det(1), x_det(2), x_det(3), x_det(4), T1, T2, F0, K, T, DF);
+    x_det(1), x_det(2), x_det(3), T1, T2, F0, K, T, DF);
 
-calibration_results("Deterministic volatility") = ...
-    {x_det, model_prices_det, model_volatilities_det, fval_det, sqrt(fval_det)};
-
+% print the results
+x_det
+fval_det
 %% Plot the calibration
-% sigma hats
+
 figure; hold on; grid on
 surf(K, T, volatilities, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
 surf(K, T, model_volatilities_det, 'FaceColor', [0.5 0.5 1], 'EdgeColor', 'none');
@@ -242,7 +237,6 @@ legend('Market implied volatility', 'Model volatility')
 xlabel('Strike price'); ylabel('Maturity'); zlabel('Volatility');
 title('Volatility of swaptions');
 view(45,20);
-
 % prices
 figure; hold on; grid on
 surf(K, T, market_prices, 'FaceColor', [1 0.5 0.5], 'EdgeColor', 'none');
@@ -252,13 +246,11 @@ legend('Market price', 'Model price');
 xlabel('Strike price'); ylabel('Maturity'); zlabel('Swaption Price')
 title('Prices of swaptions');
 view(45,20);
-
 %% Point VII: setup
 
 K_barrier = 500; % strike price
 L = 450; % barrier level
-T_barrier = 0.5; % maturi/:y
-
+T_barrier = 0.5; % maturity
 %% Point VII, a: pricing a down-and-in call option, using the constant volatility model
 
 % integral is (sigma_1^2 + sigma_2^2) * (T_n - T_{n-1})
@@ -270,8 +262,7 @@ Sim_const = MC_simulation(sigma_int_inc, F0, T);
 below_barrier = any(Sim_const < L, 2);
 
 C_DI_const_MC = max(Sim_const(:,end) - K_barrier, 0) .* below_barrier;
-C_DI_const_MC = mean(C_DI_const_MC) * DF(end)
-
+C_DI_const_MC = mean(C_DI_const_MC) * DF(end);
 %% Point VII, b: pricing a down-and-in call option, using the single time-dependent volatility model
 
 sigma_int_inc = x_singletime(1:end-1) + x_singletime(end)^2 * (T - [0; T(1:end-1)]);
@@ -282,8 +273,7 @@ Sim_singletime = MC_simulation(sigma_int_inc, F0, T);
 below_barrier = any(Sim_const < L, 2);
 
 C_DI_singletime_MC = max(Sim_singletime(:,end) - K_barrier, 0) .* below_barrier;
-C_DI_singletime_MC = mean(C_DI_singletime_MC) * DF(end)
-
+C_DI_singletime_MC = mean(C_DI_singletime_MC) * DF(end);
 %% Point VII, c: pricing a down-and-in call option, using the time-dependent volatility model
 
 sigma_int_inc = x_time(:,1) + x_time(:,2);
@@ -294,4 +284,8 @@ Sim_time = MC_simulation(sigma_int_inc, F0, T);
 below_barrier = any(Sim_const < L, 2);
 
 C_DI_time_MC = max(Sim_time(:,end) - K_barrier, 0) .* below_barrier;
-C_DI_time_MC = mean(C_DI_time_MC) * DF(end)
+C_DI_time_MC = mean(C_DI_time_MC) * DF(end);
+%% Print the results
+table( C_DI_const_MC C_DI_singletime_MC C_DI_time_MC, ...
+    'VariableNames', {'Constant volatility', 'Single time-dependent volatility', 'Time-dependent volatility'}, ...
+    'RowNames', {'Down-and-in call option price'})
