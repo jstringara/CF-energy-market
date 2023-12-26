@@ -32,9 +32,7 @@ function C = volsToPrices(S0, K, T, DF, vols)
     C = zeros(length(T), length(K));
     for i = 1:length(T)
         for j = 1:length(K)
-            % compute the sigma_hat
-            sigma_hat = vols(i,j) * sqrt(T(i));
-            % use the Black76 formula
-            C(i,j) = Black76(S0, K(j), T(i), DF(i), sigma_hat);
+            % use the Black Formula for futures options
+            C(i,j) = blkprice(S0, K(j), -log(DF(i))/T(i), vols(i,j), T(i));
         end
     end
