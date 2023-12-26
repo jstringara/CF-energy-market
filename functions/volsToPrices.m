@@ -33,6 +33,6 @@ function C = volsToPrices(S0, K, T, DF, vols)
     for i = 1:length(T)
         for j = 1:length(K)
             % use the Black Formula for futures options
-            C(i,j) = blkprice(S0, K(j), -log(DF(i))/T(i), vols(i,j), T(i));
+            C(i,j) = blkprice(S0, K(j), -log(DF(i))/T(i), T(i), vols(i,j));
         end
     end
