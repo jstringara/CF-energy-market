@@ -38,7 +38,6 @@ K = table_options(1, 2:end).Variables; % strike prices
 T = table_options(2:end, 1).Variables; % maturities
 DF = discountFactor(OIS_DF, dates, T); % discount factors at the maturities of the options
 volatilities = table_options(2:end, 2:end).Variables; % real market implied volatilities
-max_volatility = max(volatilities, [], "all"); % maximum volatility
 % convert the volatilities to sigma hat (volatility * sqrt(T))
 market_prices = volsToPrices(F0, K, T, DF, volatilities); % market prices of the options
 % expiry of the swap
@@ -49,7 +48,6 @@ T1 = T1 / number_days; % convert to fraction of (business) year
 T2 = datenum('31/12/2024', 'dd/mm/yyyy');
 T2 = T2 - datenum('04/11/2023', 'dd/mm/yyyy');
 T2 = T2 / number_days; % convert to fraction of (business) year
-
 %% Plot the prices and the volatilities
 
 % plot the prices
@@ -67,6 +65,13 @@ surf(K, T, volatilities);
 xlabel('Strike price'); ylabel('Maturity'); zlabel('Volatility');
 title('Implied volatilities of swaptions');
 view(-20,20);
+%% Data clipping
+
+K_cutoff = 560;
+K = K(K<K_cutoff); % clip the higher strike prices
+volatilities = volatilities(:,K<K_cutoff);
+market_prices = market_prices(:, K<K_cutoff);
+max_volatility = max(volatilities, [], "all"); % maximum volatility
 %% Point III: Calibrate the model using the Black-76 formula
 
 % Use the MSE as error function
@@ -135,8 +140,6 @@ fval_singletime
 sigma_hat_singletime = sqrt( cumsum(x_singletime(1:end-1)) + x_singletime(end)^2 * T );
 table(T, x_singletime(1:end-1), x_singletime(end)^2 * (T - [0; T(1:end-1)]), sigma_hat_singletime, ...
     'VariableNames', {'Tenor', 'Integral increase (Time dependent)', 'Integral increase (Constant)', 'Sigma hat'})
-    
-
 %% Plot the calibration
 
 % volatilities
@@ -182,7 +185,6 @@ fval_time
 sigma_hat_time = sqrt( cumsum(x_time(:,1)) + cumsum(x_time(:,2)) );
 table(T, x_time(:,1), x_time(:,2), sigma_hat_time, ...
     'VariableNames', {'Tenor', 'Integral increase (Sigma_1)', 'Integral increase (Sigma_2)', 'Sigma hat'})
-
 %% Plot the calibration
 
 % sigma hats
@@ -286,6 +288,23 @@ below_barrier = any(Sim_const < L, 2);
 C_DI_time_MC = max(Sim_time(:,end) - K_barrier, 0) .* below_barrier;
 C_DI_time_MC = mean(C_DI_time_MC) * DF(end);
 %% Print the results
-table( C_DI_const_MC C_DI_singletime_MC C_DI_time_MC, ...
+
+table(C_DI_const_MC, C_DI_singletime_MC, C_DI_time_MC, ...
     'VariableNames', {'Constant volatility', 'Single time-dependent volatility', 'Time-dependent volatility'}, ...
     'RowNames', {'Down-and-in call option price'})
+%%
+%% Point VII with weekly monitoring (only point III)
+
+T_weekly = (1/52:1/52:0.5)'; % monitoring dates, 0 not included
+
+sigma_int_inc = (x_const(1)^2 + x_const(2)^2) * (T_weekly - [0; T_weekly(1:end-1)]);
+
+Sim_const_weekly = MC_simulation(sigma_int_inc, F0, T_weekly);
+
+% find which rows have gone below the barrier
+below_barrier = any(Sim_const_weekly < L, 2);
+
+C_DI_const_MC_weekly = max(Sim_const_weekly(:,end) - K_barrier, 0) .* below_barrier;
+C_DI_const_MC_weekly = mean(C_DI_const_MC_weekly) * DF(end);
+
+C_DI_const_MC_weekly
